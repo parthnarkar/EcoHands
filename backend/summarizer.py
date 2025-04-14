@@ -15,10 +15,12 @@ def extract_keywords(text: str, top_k: int = 10) -> list:
     
     words = re.findall(r'\b[a-zA-Z]{4,}\b', text.lower())  # only words with 4+ letters
     freq = {}
+
     for word in words:
         if word not in stop_words:
             freq[word] = freq.get(word, 0) + 1
     keywords = sorted(freq, key=freq.get, reverse=True)
+
     return keywords[:top_k]
 
 def summarize_text(text: str) -> str:
@@ -27,23 +29,33 @@ def summarize_text(text: str) -> str:
     
     try:
         # Limit input text to 1500 characters
-        text = text[:1500]
+        original_text = text[:1500]
         
-        # Generate summary using the model
-        summary = summarizer(text, max_length=150, min_length=50, do_sample=False)
+        # Extract keywords and build a soft guiding prompt
+        key_terms = extract_keywords(original_text)
+        keyword_prompt = ", ".join(key_terms)
+
+        guided_prompt = (
+            f"Please summarize the following text, making sure to highlight all the key points and including important details such as {keyword_prompt}. "
+            "Ensure that the summary provides an accurate and concise representation of the main ideas, including the most relevant terms and topics from the original text:\n\n"
+            f"{original_text}"
+        )
+        
+        # Generate summary
+        summary = summarizer(guided_prompt, max_length=150, min_length=40, do_sample=False)
         final_summary = summary[0]['summary_text']
 
-        # Validate presence of key terms
-        validated_summary = validate_summary(final_summary, text)
+        # Check for missing important keywords (optional, for dev/debugging)
+        validated_summary = validate_summary(final_summary, original_text)
         
         return validated_summary
-    
+
     except Exception as e:
         return f"Summarization failed: {str(e)}"
 
 def validate_summary(summary: str, original_text: str) -> str:
     """
-    Ensure summary contains important keywords from original text.
+    Print a warning if important keywords from original text are missing.
     """
     key_terms = extract_keywords(original_text)
     missing = [kw for kw in key_terms if kw not in summary.lower()]
@@ -55,7 +67,13 @@ def validate_summary(summary: str, original_text: str) -> str:
 
 if __name__ == "__main__":
     sample_text = """
-        In their letter, Padilla and Welch requested information about the companies’ current and previous safety measures and any research on the efficacy of those measures, as well as the names of safety leadership and well-being practices in place for safety teams. They also asked the firms to describe the data used to train their AI models and how it “influences the likelihood of users encountering age-inappropriate or other sensitive themes.”
+        The European Union has announced a sweeping set of AI regulations aimed at safeguarding public interest while fostering innovation.
+        The new laws will categorize AI systems into different levels of risk — from minimal to unacceptable — and will impose strict rules on high-risk applications, including biometric surveillance and algorithmic decision-making in hiring.
+        Under the new guidelines, companies developing or deploying AI systems in the EU must be transparent about how their algorithms function, including documentation on datasets used, accuracy levels, and safety checks.
+        The legislation comes in response to growing concerns over the ethical use of artificial intelligence and fears about biased decision-making, job displacement, and privacy violations.
+        European Commission President Ursula von der Leyen stated that the rules aim to ensure Europe remains a global leader in trustworthy AI.
+        The proposal still needs approval from member states and the European Parliament, but it's already being hailed as a landmark step in regulating emerging technologies.
+        Meanwhile, tech companies are responding cautiously. Some have welcomed the move for more clarity, while others warn the rules could stifle innovation and raise compliance costs.
     """
     
     print("🧠 Summary:")
