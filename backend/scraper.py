@@ -36,6 +36,6 @@ if __name__ == "__main__":
         print("❌ Error:", result["error"])
     else:
         print("✅ Title:", result["title"])
-        print("📝 Text Snippet:", result["text"][:300], "...")
+        print("📝 Text Snippet:", result["text"])
         print("📅 Date:", result["date"])
         print("✍️ Authors:", result["authors"])
